@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" serverName="ssh://shangmingyang@166.111.80.54:22/home/shangmingyang/py-env/py2/bin/python" autoUploadExternalChanges="true">
+    <serverData>
+      <paths name="ssh://shangmingyang@166.111.80.54:22/home/shangmingyang/py-env/py2/bin/python">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/shangmingyang/projects/ImgJoint3D" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>
