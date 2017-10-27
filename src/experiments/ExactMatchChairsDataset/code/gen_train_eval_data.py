@@ -59,5 +59,5 @@ def gen_eval_shape_feature():
     np.save("/home1/shangmingyang/data/ImgJoint3D/feature/eval_shape_img_feature.npy", eval_features)
 
 if __name__ == '__main__':
-    gen_eval_shape_feature()
-    # gen_train_data()
+    # gen_eval_shape_feature()
+    gen_train_data()

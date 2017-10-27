@@ -118,8 +118,8 @@ print >> sys.stderr, 'Building computation graph for generator...'
 gen_input_var = T.matrix('gen_input_var')
 
 gen_l_in = lasagne.layers.InputLayer(shape=(None, img_data.fc_dim), input_var=gen_input_var, name='gen_l_in')
-gen_l_out1 = lasagne.layers.DenseLayer(gen_l_in, num_units=args.joint_dim, nonlinearity=None, W=lasagne.init.Orthogonal(), b=None, name='gen_l_out1')
-gen_l_out2 = lasagne.layers.DenseLayer(gen_l_out1, num_units=args.joint_dim, nonlinearity=None, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out2")
+gen_l_out1 = lasagne.layers.DenseLayer(gen_l_in, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name='gen_l_out1')
+gen_l_out2 = lasagne.layers.DenseLayer(gen_l_out1, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out2")
 
 generation = lasagne.layers.get_output(gen_l_out2)
 generation.name = 'generation'
