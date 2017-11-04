@@ -24,7 +24,6 @@ def pca_vis(features, labels, tag="pca", fig_index=1):
     ax.set_title(tag)
     plt.xlabel('X')
     plt.ylabel('Y')
-    features = features.astype(int)
     ax.scatter(features[:, 0], features[:, 1], c=labels, marker='.')
     plt.legend("shapenet-shape")
 
