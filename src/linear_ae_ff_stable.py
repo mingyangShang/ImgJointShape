@@ -118,12 +118,14 @@ print >> sys.stderr, 'Building computation graph for generator...'
 gen_input_var = T.matrix('gen_input_var')
 
 gen_l_in = lasagne.layers.InputLayer(shape=(None, img_data.fc_dim), input_var=gen_input_var, name='gen_l_in')
-gen_l_out1 = lasagne.layers.DenseLayer(gen_l_in, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name='gen_l_out1')
-gen_l_out2 = lasagne.layers.DenseLayer(gen_l_out1, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out2")
-gen_l_out3 = lasagne.layers.DenseLayer(gen_l_out2, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out3")
+gen_l_out1 = lasagne.layers.DenseLayer(gen_l_in, num_units=2048, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name='gen_l_out1')
+gen_l_out2 = lasagne.layers.DenseLayer(gen_l_out1, num_units=1024, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out2")
+gen_l_out3 = lasagne.layers.DenseLayer(gen_l_out2, num_units=512, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out3")
+gen_l_out4 = lasagne.layers.DenseLayer(gen_l_out3, num_units=args.joint_dim, nonlinearity=lasagne.nonlinearities.tanh, W=lasagne.init.Orthogonal(), b=None, name="gen_l_out4")
+last_gen_l_out = gen_l_out4
 
 
-generation = lasagne.layers.get_output(gen_l_out3)
+generation = lasagne.layers.get_output(last_gen_l_out)
 generation.name = 'generation'
 
 discriminator_prediction = lasagne.layers.get_output(discriminator.l_out, generation, deterministic=True)
@@ -131,26 +133,28 @@ adv_gen_loss = -T.log(discriminator_prediction).mean() if args.alt_loss else T.l
 adv_gen_loss.name = 'adv_gen_loss'
 
 # TODO no reconstruct
-dec_l_out = lasagne.layers.DenseLayer(gen_l_out3, num_units=img_data.fc_dim, nonlinearity=None, W=gen_l_out1.W.T, b=None, name='dec_l_out')
+dec_l_out = lasagne.layers.DenseLayer(last_gen_l_out, num_units=img_data.fc_dim, nonlinearity=None, W=gen_l_out1.W.T, b=None, name='dec_l_out')
 
-reconstruction = lasagne.layers.get_output(dec_l_out)
-reconstruction.name = 'reconstruction'
-recon_gen_loss = 1.0 - cosine_sim(gen_input_var, reconstruction).mean()
-recon_gen_loss.name = 'recon_gen_loss'
+# reconstruction = lasagne.layers.get_output(dec_l_out)
+# reconstruction.name = 'reconstruction'
+# recon_gen_loss = 1.0 - cosine_sim(gen_input_var, reconstruction).mean()
+# recon_gen_loss.name = 'recon_gen_loss'
 
-if args.recon_weight == 0:
-	gen_loss = adv_gen_loss
-else:
-	gen_loss = adv_gen_loss + args.recon_weight * recon_gen_loss
+# TODO no reconstrution loss
+gen_loss = adv_gen_loss
+# if args.recon_weight == 0:
+# 	gen_loss = adv_gen_loss
+# else:
+# 	gen_loss = adv_gen_loss + args.recon_weight * recon_gen_loss
 gen_loss.name = 'gen_loss'
 
 gen_params = lasagne.layers.get_all_params(dec_l_out, trainable=True)
 gen_updates = lasagne.updates.adam(gen_loss, gen_params, learning_rate=0.001)
 
-grad_norm = T.grad(adv_gen_loss, gen_l_out3.W).norm(2, axis=1).mean()
+# grad_norm = T.grad(adv_gen_loss, last_gen_l_out.W).norm(2, axis=1).mean()
 
 print >> sys.stderr, 'Compiling generator...'
-gen_train_fn = theano.function([gen_input_var], [gen_loss, recon_gen_loss, adv_gen_loss, generation, grad_norm], updates=gen_updates)
+gen_train_fn = theano.function([gen_input_var], [gen_loss, adv_gen_loss, generation], updates=gen_updates)
 gen_test_fn = theano.function([gen_input_var], [generation])
 
 
@@ -175,7 +179,7 @@ def train():
 			nor_batch_imgs, nor_batch_shapes = normalize(batch_imgs).astype(theano.config.floatX), normalize(batch_shapes).astype(theano.config.floatX)
 			# Generator
 			gen_input = nor_batch_imgs
-			gen_loss_val, recon_gen_loss_val, adv_gen_loss_val, X_gen, grad_norm_val = gen_train_fn(gen_input)
+			gen_loss_val, adv_gen_loss_val, X_gen = gen_train_fn(gen_input)
 			# Discriminator
 			# updates discriminator parameters as all batch numbers
 			if epoch * batch % args.update_times_g2d == 0:
@@ -186,11 +190,10 @@ def train():
 			else:
 				loss_val = -1 # no loss
 				opt_D = False
-			W = gen_l_out3.W.get_value()
 			if batch % print_every_batch == 0:
 				if opt_D:
-					print >> sys.stderr, 'epoch=%s,batch=%s: %s %s %s %s %s %s %s' \
-					% (epoch, batch, accuracy_val, loss_val, np.mean(prediction_val), gen_loss_val, recon_gen_loss_val, adv_gen_loss_val, grad_norm_val) #, np.linalg.norm(np.dot(W.T, W) - np.identity(img_data.fc_dim)))
+					print >> sys.stderr, 'epoch=%s,batch=%s: %s %s %s %s %s' \
+					% (epoch, batch, accuracy_val, loss_val, np.mean(prediction_val), gen_loss_val, adv_gen_loss_val) #, np.linalg.norm(np.dot(W.T, W) - np.identity(img_data.fc_dim)))
 				else:
 					print >> sys.stderr, 'epoch=%s,batch=%s: %s' %(epoch, batch, gen_loss_val)
 			batch += 1
@@ -220,9 +223,7 @@ def test():
 	nor_batch_imgs = normalize(batch_imgs).astype(theano.config.floatX)
 	gen_input = nor_batch_imgs
 	gen_img_feature = gen_test_fn(gen_input)
-	W = gen_l_out3.W.get_value()
 	np.save(config.TEST_IMG_JOINT_FEATURE, gen_img_feature[0])
-	np.save("/home1/shangmingyang/data/ImgJoint3D/result/W.npy", W)
 
 if __name__ == '__main__':
 	if args.train:

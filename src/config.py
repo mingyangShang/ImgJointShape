@@ -23,6 +23,19 @@ IMG_TRAIN_LABEL_FILE = os.path.join(root_dir, 'data/image/image_train_labels.npy
 SHAPE_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_train_features_512.npy')
 SHAPE_TRAIN_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_train_labels.npy')
 
+# Eval data
+IMG_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_eval_features_vgg.npy')
+IMG_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/image/image_eval_labels.npy')
+SHAPE_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_eval_features_512.npy')
+SHAPE_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_eval_labels.npy')
+
+EXPERIMENTS_EVAL_IMG_FEATURE_FILE = os.path.join(root_dir, 'data/result/image_eval_joint_features.npy')
+EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE = os.path.join(root_dir, 'data/result/shape_eval_joint_features.npy')
+EXPERIMENTS_EXACT_MATCH_DATASET_DIR = os.path.join(root_dir, 'data/experiments/ExactMatchChairsDataset')
+EXPERIMENTS_EVAL_CHAIR_FILE = os.path.join(EXPERIMENTS_EXACT_MATCH_DATASET_DIR, 'filelist_chair_6777.txt')
+EXPERIMENTS_EVAL_CHAIR_IMG_MODELID_FILE = os.path.join(EXPERIMENTS_EXACT_MATCH_DATASET_DIR, 'exact_match_chairs_img_modelIds_0to6776.txt')
+EXPERIMENTS_EVAL_RESULT_DIR = os.path.join(root_dir, 'data/experiments/results')
+
 
 IMG_FEATURE_FILE = '/home1/shangmingyang/data/ImgJoint3D/feature/train_img_feature.npy'
 # IMG_FEATURE_FILE = '/home1/shangmingyang/data/ImgJoint3D/feature/eval_img_feature.npy'

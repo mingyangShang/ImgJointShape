@@ -6,13 +6,7 @@ import tempfile
 from scipy.spatial.distance import *
 import os
 
-BASEDIR = os.path.dirname(os.path.abspath(__file__))
-EXACTMATCH_DATASET = os.path.join(BASEDIR, 'ExactMatchChairsDataset')
-RESULTDIR = os.path.join(BASEDIR, 'results')
-
 parser = argparse.ArgumentParser(description="shape2image and image2shape evaluation on exact-match-chair dataset.")
-parser.add_argument('-m', '--img_model_ids_file', help='File, each line is model id (0to6776) of img.', required=True)
-# parser.add_argument('-i', '--input_npy_file', help='Input numpy file (pool5 feature), contains an array of N*C*H*W', required=True)
 parser.add_argument('-fs', '--shape_embedding_file', help='Shape embedding txt file (#model * #embedding-dim).',
                     required=False)
 parser.add_argument('-fi', '--img_embedding_file', help='Image embedding txt file')
@@ -20,7 +14,8 @@ parser.add_argument('-d', '--model_deploy_file', help='Caffe model deploy file (
 parser.add_argument('-p', '--model_param_file', help='Caffe model parameter file.', required=False)
 parser.add_argument('-n1', '--nb_image2shape', help='Number of nearest shapes', required=True)
 parser.add_argument('-n2', '--nb_shape2image', help='Number of nearest images', required=True)
-parser.add_argument('--result_id', help='Result ID (string)', required=True)
+parser.add_argument('--data', '--exact_match_dataset', help='path of exact match dataset', required=True)
+parser.add_argument('--result_dir', help='path of result dir', required=True)
 parser.add_argument('--distance_matrix_txt_file', help='Distance matrix (#image * #model) txt file (default=None)',
                     default=None, required=False)
 parser.add_argument('--clutter_only', help='Test on clutter image only.', action='store_true')
@@ -28,6 +23,9 @@ parser.add_argument('--clean_only', help='Test on clean image only.', action='st
 parser.add_argument('--feat_dim', help='Embedding feat dim (default=100)', default=100, required=False)
 
 args = parser.parse_args()
+
+EXACTMATCH_DATASET = args.data
+RESULTDIR = args.result_dir
 
 # 315 test image names
 img_names = [x.rstrip() for x in open(os.path.join(EXACTMATCH_DATASET, 'exact_match_chairs_img_filelist.txt'), 'r')]
@@ -39,7 +37,7 @@ exact_match_cluttered_indicies = [int(x.rstrip()) for x in open(
     os.path.join(EXACTMATCH_DATASET, 'exact_match_chairs_cluttered_img_indicies_0to314.txt'), 'r')]
 exact_match_clean_indicies = [x for x in range(315) if x not in exact_match_cluttered_indicies]
 # 315 image model ids
-image_model_ids = np.loadtxt(args.img_model_ids_file)
+image_model_ids = np.loadtxt(os.path.join(EXACTMATCH_DATASET, "exact_match_chairs_img_modelIds_0to6776.txt"))
 
 if args.clutter_only:
     image_model_ids = image_model_ids[exact_match_cluttered_indicies]
@@ -75,6 +73,8 @@ else:
 
     # compute distances between images and shapes
     image_embedding = np.load(args.img_embedding_file)
+    print args.img_embedding_file
+    print args.shape_embedding_file
     if args.clutter_only:
         image_embedding = image_embedding[exact_match_cluttered_indicies, :]
     elif args.clean_only:
@@ -88,8 +88,7 @@ else:
 #
 # IMAGE2SHAPE
 #
-dist_name = os.path.join(RESULTDIR, 'tmp_image2shape_dist.txt')
-np.savetxt(dist_name, D)
+np.savetxt(os.path.join(RESULTDIR, 'tmp_image2shape_dist.txt'), D)
 
 print np.shape(D)
 image_N = D.shape[0]
@@ -119,15 +118,12 @@ for topK in range(250):
     n = sum([r <= topK + 1 for r in image2shape_retrieval_ranking_105models])
     image2shape_topK_accuracies_105models.append(n / float(image_N))
 
-np.savetxt(args.result_id + '_image2shape_topK_accuracy.txt', image2shape_topK_accuracies, fmt='%.4f')
-np.savetxt(args.result_id + '_image2shape_topK_accuracy_105models.txt', image2shape_topK_accuracies_105models,
-           fmt='%.4f')
+np.savetxt(os.path.join(RESULTDIR, 'image2shape_topK_accuracy.txt'), image2shape_topK_accuracies, fmt='%.4f')
+np.savetxt(os.path.join(RESULTDIR, 'image2shape_topK_accuracy_105models.txt'), image2shape_topK_accuracies_105models, fmt='%.4f')
 
 #
 # SHAPE2IMAGE
-#
-dist_name = os.path.join(RESULTDIR, 'tmp_shape2image_dist.txt')
-np.savetxt(dist_name, D.transpose())
+np.savetxt(os.path.join(RESULTDIR, 'tmp_shape2image_dist.txt'), D.transpose())
 
 image_model_ids_set = set(image_model_ids)
 model_N = min(len(exact_match_modelIds), len(set(image_model_ids)))
@@ -160,6 +156,5 @@ for topK in range(250):
 
 print first_ranks
 print last_ranks
-np.savetxt(args.result_id + '_shape2image_topK_accuracy.txt', shape2image_topK_accuracies, fmt='%.4f')
-np.savetxt(args.result_id + '_first_last_appearance_median_rank.txt', [np.median(first_ranks), np.median(last_ranks)],
-           fmt='%d')
+np.savetxt(os.path.join(RESULTDIR, 'shape2image_topK_accuracy.txt'), shape2image_topK_accuracies, fmt='%.4f')
+np.savetxt(os.path.join(RESULTDIR, 'first_last_appearance_median_rank.txt'), [np.median(first_ranks), np.median(last_ranks)], fmt='%d')
