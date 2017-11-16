@@ -129,12 +129,20 @@ def gen_eval_shape_feature():
     eval_features = all_features[eval_index, :]
     np.save("/home1/shangmingyang/data/ImgJoint3D/feature/eval_shape_img_feature.npy", eval_features)
 
+def fake_train_img_feature(n_first=2):
+    shape_img_features = np.load("/home1/shangmingyang/data/ImgJoint3D/feature/train_img_feature_all.npy")
+    first_2_features = shape_img_features[:, np.arange(0, n_first), :]
+    first_2_features = np.reshape(first_2_features, [-1, first_2_features.shape[-1]])
+    print first_2_features.shape
+    np.save(config.IMG_TRAIN_FEATURE_FILE, first_2_features)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("--gen-all-shape", action='store_true', help='whether generate all shape data')
     parser.add_argument('--gen-train-shape', action='store_true', help='whether generate train data')
     parser.add_argument("--gen-all-img", action='store_true', help='whether generate all image data')
     parser.add_argument('--gen-train-img', action='store_true', help='whether generate img data')
+    parser.add_argument("--fake-train-img", action='store_true', help='whether fake train img from shape')
     args = parser.parse_args()
     if args.gen_all_shape:
         gen_all_shape_data()
@@ -144,3 +152,5 @@ if __name__ == '__main__':
         gen_all_img_data()
     if args.gen_train_img:
         gen_train_img_data()
+    if args.fake_train_img:
+        fake_train_img_feature(n_first=2)

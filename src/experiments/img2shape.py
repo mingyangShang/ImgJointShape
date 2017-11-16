@@ -80,6 +80,7 @@ else:
     elif args.clean_only:
         image_embedding = image_embedding[exact_match_clean_indicies, :]
     image_embedding = image_embedding.reshape((image_embedding.shape[0], image_embedding.shape[1]))
+    print image_model_ids.shape[0], image_embedding.shape[0]
     assert (image_model_ids.shape[0] == image_embedding.shape[0])
     shape_embedding = np.load(shape_embedding_file)
     print image_embedding.shape, shape_embedding.shape

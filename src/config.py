@@ -16,7 +16,8 @@ SHAPENET_METADATA_FILE = os.path.join(root_dir, 'data/shape/cleaned_all.csv')
 # Features and labels extracted for imagenet
 IMAGENET_DIR = os.path.join(root_dir, 'data/image/imagenet')
 IMAGENET_ALL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_all_features_vgg.npy')
-IMG_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_train_features_vgg.npy')
+IMG_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/image/shapenet_img_first/image_shapenet_first_train_features_vgg.npy')
+# IMG_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/image/shapenet_img_first/image_shapenet_first2_train_features_vgg.npy')
 IMG_TRAIN_LABEL_FILE = os.path.join(root_dir, 'data/image/image_train_labels.npy')
 
 # Model train data
@@ -24,10 +25,10 @@ SHAPE_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_train_featur
 SHAPE_TRAIN_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_train_labels.npy')
 
 # Eval data
-IMG_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_eval_features_vgg.npy')
-IMG_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/image/image_eval_labels.npy')
-SHAPE_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_eval_features_512.npy')
-SHAPE_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_eval_labels.npy')
+IMG_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_eval_features_vgg_first.npy')
+IMG_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/image/image_eval_labels_first.npy')
+SHAPE_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_eval_features_512_first.npy')
+SHAPE_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_eval_labels_first.npy')
 
 EXPERIMENTS_EVAL_IMG_FEATURE_FILE = os.path.join(root_dir, 'data/result/image_eval_joint_features.npy')
 EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE = os.path.join(root_dir, 'data/result/shape_eval_joint_features.npy')
