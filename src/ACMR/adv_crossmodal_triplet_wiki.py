@@ -174,16 +174,20 @@ class AdvCrossModalSimple(BaseModel):
                 # label_binarizer.fit(range(max(batch_labels_)+1))
                 # b = label_binarizer.transform(batch_labels_)
                 b = pairwise_input_data.onehot(batch_labels, dim=self.model_params.n_class)
-                adj_mat = np.dot(b,np.transpose(b))
-                mask_mat = np.ones_like(adj_mat) - adj_mat
-                img_sim_mat = mask_mat*cosine_similarity(batch_feat, batch_feat)
-                txt_sim_mat = mask_mat*cosine_similarity(batch_vec, batch_vec)
-                img_neg_txt_idx = np.argmax(img_sim_mat,axis=1).astype(int)
-                txt_neg_img_idx = np.argmax(txt_sim_mat,axis=1).astype(int)
-                batch_vec_ = np.array(batch_vec)
-                batch_feat_ = np.array(batch_feat)
-                img_neg_txt = batch_vec_[img_neg_txt_idx,:]
-                txt_neg_img = batch_feat_[txt_neg_img_idx,:]
+                # adj_mat = np.dot(b,np.transpose(b))
+                # mask_mat = np.ones_like(adj_mat) - adj_mat
+                # img_sim_mat = mask_mat*cosine_similarity(batch_feat, batch_feat)
+                # txt_sim_mat = mask_mat*cosine_similarity(batch_vec, batch_vec)
+                # img_neg_txt_idx = np.argmax(img_sim_mat,axis=1).astype(int)
+                # txt_neg_img_idx = np.argmax(txt_sim_mat,axis=1).astype(int)
+                # print(img_neg_txt_idx)
+                # print(txt_neg_img_idx)
+                # batch_vec_ = np.array(batch_vec)
+                # batch_feat_ = np.array(batch_feat)
+                # img_neg_txt = batch_vec_[img_neg_txt_idx,:]
+                # txt_neg_img = batch_feat_[txt_neg_img_idx,:]
+                img_neg_txt = self.find_neg_pair(batch_feat, batch_vec)
+                txt_neg_img = self.find_neg_pair(batch_vec, batch_feat)
                 _, _, label_loss_val, triplet_loss_val, emb_loss_val, domain_loss_val, domain_class_acc_val, label_class_acc_val = sess.run([emb_train_op, domain_train_op, self.label_loss, self.triplet_loss, self.emb_loss, self.domain_class_loss, self.domain_class_acc, self.label_class_acc],
                           feed_dict={self.tar_img: batch_feat,
                           self.tar_shape: batch_vec,
@@ -200,6 +204,28 @@ class AdvCrossModalSimple(BaseModel):
                 batch += 1
             if epoch % self.model_params.n_save_epoch == 0:
                 self.save(epoch, sess)
+
+    def find_neg_pair(self, fcs1, fcs2):
+        """
+        find negative pair for each value of fcs1 from fcs2
+        :param fcs1:
+        :param fcs2:
+        :return:
+        """
+        assert fcs1.shape[0] == fcs2.shape[0]
+        size = fcs1.shape[0]
+        sims = cosine_similarity(fcs1, fcs1)
+        result = []
+        for i in range(size):
+            sims[i][i] = -1.0
+            neg_index = np.argmax(sims[i, :], axis=0).astype(int)
+            result.append(neg_index)
+        return fcs2[result]
+
+    def test_find_neg_pair(self):
+        fcs1, fcs2 = np.array([[1, 0, 0], [0, 1, 1], [1, 1, 0]]), np.array([[1, 1, 1], [2, 2, 2], [3, 3, 3]])
+        result = self.find_neg_pair(fcs1, fcs2)
+        assert result == [[3, 3, 3], [3, 3, 3], [1, 1, 1]]
 
     def eval(self, sess):
         self.img_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_EVAL_FEATURE_FILE, config.IMG_EVAL_FEATURE_FILE, config.IMG_EVAL_LABEL_FILE,

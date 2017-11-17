@@ -25,6 +25,10 @@ SHAPE_TRAIN_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_train_featur
 SHAPE_TRAIN_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_train_labels.npy')
 
 # Eval data
+# IMG_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_eval_features_vgg.npy')
+# IMG_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/image/image_eval_labels.npy')
+# SHAPE_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_eval_features_512.npy')
+# SHAPE_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/shape/shape_eval_labels.npy')
 IMG_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/image/image_eval_features_vgg_first.npy')
 IMG_EVAL_LABEL_FILE = os.path.join(root_dir, 'data/image/image_eval_labels_first.npy')
 SHAPE_EVAL_FEATURE_FILE = os.path.join(root_dir, 'data/shape/shape_eval_features_512_first.npy')
