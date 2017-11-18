@@ -101,3 +101,8 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+data/shape/
+data/image/
+data/result/
+data/experiments/results

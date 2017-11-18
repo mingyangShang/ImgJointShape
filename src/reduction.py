@@ -43,10 +43,12 @@ def tsne_visualization(pre_img_feature_file, pre_shape_feature_file, to_dim=2):
     tsne_reduction(np.load(pre_shape_feature_file), to_dim=to_dim, save_path=pre_shape_feature_file[:pre_shape_feature_file.index(".npy")]+"_tsne_2dim.npy")
 
 if __name__ == "__main__":
-    pca_reduction(np.load("/home1/shangmingyang/projects/tensorflow-vgg/feature/imagenet_class_center_feature.npy"), 2, \
-                  save_path='/home1/shangmingyang/data/ImgJoint3D/feature/imagenet_class_center_feature_pca_2dim.npy')
-    tsne_reduction(np.load("/home1/shangmingyang/projects/tensorflow-vgg/feature/imagenet_class_center_feature.npy"), 2, \
-                  save_path='/home1/shangmingyang/data/ImgJoint3D/feature/imagenet_class_center_feature_tsne_2dim.npy')
+    tsne_reduction(np.concatenate((np.load("../data/result/visual/shape_eval_first_triplet_acmr_joint_features.npy"), \
+                                  np.load("../data/result/visual/image_eval_first_triplet_acmr_joint_features.npy")), axis=0), 2, save_path='../data/result/visual/image_shape_eval_first_triplet_acmr_joint_features_tsne.npy')
+    # pca_reduction(np.load("/home1/shangmingyang/projects/tensorflow-vgg/feature/imagenet_class_center_feature.npy"), 2, \
+    #               save_path='/home1/shangmingyang/data/ImgJoint3D/feature/imagenet_class_center_feature_pca_2dim.npy')
+    # tsne_reduction(np.load("/home1/shangmingyang/projects/tensorflow-vgg/feature/imagenet_class_center_feature.npy"), 2, \
+    #               save_path='/home1/shangmingyang/data/ImgJoint3D/feature/imagenet_class_center_feature_tsne_2dim.npy')
     # tsne_visualization("/home1/shangmingyang/data/ImgJoint3D/feature/train_imagenet_feature.npy", "/home1/shangmingyang/data/ImgJoint3D/feature/train_shape_feature.npy")
     # tsne_visualization("/home1/shangmingyang/data/ImgJoint3D/feature/train_img_feature_all.npy", "/home1/shangmingyang/data/ImgJoint3D/feature/shapenet55_nocolor.npy")
     # pca_reduction(np.load(src.config.IMG_FEATURE_FILE), src.config.IMG_FEATURE_DIM, save_path=src.config.REDUCTED_IMG_FEATURE_FILE)
