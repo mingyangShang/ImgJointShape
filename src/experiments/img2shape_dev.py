@@ -38,7 +38,7 @@ def img2shape(img_fcs, shape_fcs, pair_img_model, tag="all"):
         distances = D[k, :]  # [float(distance) for distance in line.strip().split()]
         ranking = range(len(distances))
         ranking.sort(key=lambda rank: distances[rank])
-        print 'image %d \t retrieval: %d' % (k, ranking.index(pair_img_model[k]) + 1)
+        # print 'image %d \t retrieval: %d' % (k, ranking.index(pair_img_model[k]) + 1)
         image2shape_retrieval_ranking.append(ranking.index(pair_img_model[k]) + 1)
     image2shape_topK_accuracies = []
     for topK in range(250):
@@ -62,6 +62,5 @@ if __name__ == '__main__':
     # for i in range(300):
     #     fcs_img[i] = fcs_img[i] + i
     # fcs_shape = fcs_img
-    print fcs_img.shape, fcs_shape.shape
     fake_pair_img2shape = np.arange(0, fcs_img.shape[0])
     img2shape(fcs_img, fcs_shape, fake_pair_img2shape, "fake_shapenet")

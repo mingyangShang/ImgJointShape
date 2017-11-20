@@ -229,16 +229,16 @@ class AdvCrossModalSimple(BaseModel):
 
     def eval(self, sess):
         self.img_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_EVAL_FEATURE_FILE, config.IMG_EVAL_FEATURE_FILE, config.IMG_EVAL_LABEL_FILE,
-                                             use_onehot=True, label_dim=self.model_params.n_class)
+                                             use_onehot=False, label_dim=self.model_params.n_class)
         self.shape_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_EVAL_FEATURE_FILE, config.IMG_EVAL_FEATURE_FILE, config.SHAPE_EVAL_LABEL_FILE,
-                                             use_onehot=True, label_dim=self.model_params.n_class)
+                                             use_onehot=False, label_dim=self.model_params.n_class)
         start = time.time()
         self.saver = tf.train.Saver()
         self.load(sess)
 
         eval_shape_feature, eval_img_feature, eval_img_label = self.img_data.test.next_batch(300, shuffle=False)
         eval_joint_img_feature, eval_img_pred_label, eval_img_label_acc_val = sess.run([self.emb_v, self.label_img_pred, self.label_img_acc],
-                                                                                       feed_dict={self.tar_img:eval_img_feature, self.y:eval_img_label})
+                                                                                       feed_dict={self.tar_img:eval_img_feature, self.y:pairwise_input_data.onehot(eval_img_label, dim=self.model_params.n_class)})
         np.save(config.EXPERIMENTS_EVAL_IMG_FEATURE_FILE, eval_joint_img_feature)
         print("Joint image feature saved to %s"%config.IMG_EVAL_FEATURE_FILE)
         print("Image prediction label:", eval_img_pred_label)
@@ -247,10 +247,87 @@ class AdvCrossModalSimple(BaseModel):
 
         eval_shape_feature, eval_img_feature, eval_shape_label = self.shape_data.test.next_batch(self.shape_data.test.size(), shuffle=False)
         eval_joint_shape_feature, eval_shape_pred_label, eval_shape_label_acc_val = sess.run([self.emb_w, self.label_shape_pred, self.label_shape_acc],
-                                                                                             feed_dict={self.tar_shape:eval_shape_feature, self.y:eval_shape_label})
+                                                                                             feed_dict={self.tar_shape:eval_shape_feature, self.y:pairwise_input_data.onehot(eval_shape_label, dim=self.model_params.n_class)})
         np.save(config.EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE, eval_joint_shape_feature)
         print("Shape predicition label:", eval_shape_pred_label)
         print("Shape classification accuracy:%f"%eval_shape_label_acc_val)
         print("Joint shape feature saved to %s"%config.SHAPE_EVAL_FEATURE_FILE)
 
+        test_txt_vecs_trans, test_img_feats_trans, test_labels = eval_joint_shape_feature, eval_joint_img_feature, eval_shape_label
+        # Do cross-modal class retrieval
+        # top_k = self.model_params.top_k
+        top_k = 1
+        avg_precs = []
+        all_precs = []
+        for k in range(1, top_k+1):
+            for i in range(len(test_txt_vecs_trans)):
+                query_label = test_labels[i]
+
+                # distances and sort by distances
+                wv = test_txt_vecs_trans[i]
+                diffs = test_img_feats_trans - wv
+                dists = np.linalg.norm(diffs, axis=1)
+                sorted_idx = np.argsort(dists)
+
+                # for each k do top-k
+                precs = []
+                for topk in range(1, k + 1):
+                    hits = 0
+                    top_k = sorted_idx[0: topk]
+                    if np.sum(query_label) != test_labels[top_k[-1]]:
+                        continue
+                    for ii in top_k:
+                        retrieved_label = test_labels[ii]
+                        # print("retrievaled label:", retrieved_label)
+                        if np.sum(retrieved_label) == query_label:
+                            hits += 1
+                    precs.append(float(hits) / float(topk))
+                if len(precs) == 0:
+                    precs.append(0)
+                avg_precs.append(np.average(precs))
+            mean_avg_prec = np.mean(avg_precs)
+            all_precs.append(mean_avg_prec)
+        print('[Eval - shape2img] mAP: %f in %4.4fs' % (all_precs[0], (time.time() - start)))
+        print(all_precs)
+        t2i = all_precs[0]
+        # with open('./data/wikipedia_dataset/txt2img_all_precision.pkl', 'wb') as f:
+        #    cPickle.dump(all_precs, f, cPickle.HIGHEST_PROTOCOL)
+        with open(os.path.join(config.root_dir, 'data/result/shape2img_all_precision.pkl'), 'wb') as f:
+            cPickle.dump(all_precs, f, cPickle.HIGHEST_PROTOCOL)
+
+        avg_precs = []
+        all_precs = []
+
+        for k in range(1, top_k+1):
+            for i in range(len(test_img_feats_trans)):
+                query_img_feat = test_img_feats_trans[i]
+                ground_truth_label = test_labels[i]
+
+                # calculate distance and sort
+                diffs = test_txt_vecs_trans - query_img_feat
+                dists = np.linalg.norm(diffs, axis=1)
+                sorted_idx = np.argsort(dists)
+
+                # for each k in top-k
+                precs = []
+                for topk in range(1, k + 1):
+                    hits = 0
+                    top_k = sorted_idx[0: topk]
+                    if np.sum(ground_truth_label) != test_labels[top_k[-1]]:
+                        continue
+                    for ii in top_k:
+                        retrieved_label = test_labels[ii]
+                        if np.sum(ground_truth_label) == retrieved_label:
+                            hits += 1
+                    precs.append(float(hits) / float(topk))
+                if len(precs) == 0:
+                    precs.append(0)
+                avg_precs.append(np.average(precs))
+            mean_avg_prec = np.mean(avg_precs)
+            all_precs.append(mean_avg_prec)
+        print('[Eval - img2shape] mAP: %f in %4.4fs' % (all_precs[0], (time.time() - start)))
+
         print('[Eval] finished precision-scope in %4.4fs' % (time.time() - start))
+
+
+
