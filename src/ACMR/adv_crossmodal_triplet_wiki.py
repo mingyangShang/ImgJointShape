@@ -34,7 +34,7 @@ class ModelParams(BaseModelParams):
         self.semantic_emb_dim = 128
         self.dataset_name = 'imagenet+shapenet'
         self.model_name = 'ACMR.ckpt'
-        self.model_dir = 'ACMR_%d_%d_%d.ckpt' % (self.visual_feat_dim, self.word_vec_dim, self.semantic_emb_dim)
+        self.model_dir = 'ACMR_%d_%d_%d_triplet_acmr' % (self.visual_feat_dim, self.word_vec_dim, self.semantic_emb_dim)
 
         self.checkpoint_dir = '/home1/shangmingyang/projects/ImgJointShape/model'
         self.sample_dir = 'samples'
@@ -174,20 +174,18 @@ class AdvCrossModalSimple(BaseModel):
                 # label_binarizer.fit(range(max(batch_labels_)+1))
                 # b = label_binarizer.transform(batch_labels_)
                 b = pairwise_input_data.onehot(batch_labels, dim=self.model_params.n_class)
-                # adj_mat = np.dot(b,np.transpose(b))
-                # mask_mat = np.ones_like(adj_mat) - adj_mat
-                # img_sim_mat = mask_mat*cosine_similarity(batch_feat, batch_feat)
-                # txt_sim_mat = mask_mat*cosine_similarity(batch_vec, batch_vec)
-                # img_neg_txt_idx = np.argmax(img_sim_mat,axis=1).astype(int)
-                # txt_neg_img_idx = np.argmax(txt_sim_mat,axis=1).astype(int)
-                # print(img_neg_txt_idx)
-                # print(txt_neg_img_idx)
-                # batch_vec_ = np.array(batch_vec)
-                # batch_feat_ = np.array(batch_feat)
-                # img_neg_txt = batch_vec_[img_neg_txt_idx,:]
-                # txt_neg_img = batch_feat_[txt_neg_img_idx,:]
-                img_neg_txt = self.find_neg_pair(batch_feat, batch_vec)
-                txt_neg_img = self.find_neg_pair(batch_vec, batch_feat)
+                adj_mat = np.dot(b,np.transpose(b))
+                mask_mat = np.ones_like(adj_mat) - adj_mat
+                img_sim_mat = mask_mat*cosine_similarity(batch_feat, batch_feat)
+                txt_sim_mat = mask_mat*cosine_similarity(batch_vec, batch_vec)
+                img_neg_txt_idx = np.argmax(img_sim_mat,axis=1).astype(int)
+                txt_neg_img_idx = np.argmax(txt_sim_mat,axis=1).astype(int)
+                batch_vec_ = np.array(batch_vec)
+                batch_feat_ = np.array(batch_feat)
+                img_neg_txt = batch_vec_[img_neg_txt_idx,:]
+                txt_neg_img = batch_feat_[txt_neg_img_idx,:]
+                # img_neg_txt = self.find_neg_pair(batch_feat, batch_vec)
+                # txt_neg_img = self.find_neg_pair(batch_vec, batch_feat)
                 _, _, label_loss_val, triplet_loss_val, emb_loss_val, domain_loss_val, domain_class_acc_val, label_class_acc_val = sess.run([emb_train_op, domain_train_op, self.label_loss, self.triplet_loss, self.emb_loss, self.domain_class_loss, self.domain_class_acc, self.label_class_acc],
                           feed_dict={self.tar_img: batch_feat,
                           self.tar_shape: batch_vec,
@@ -236,22 +234,28 @@ class AdvCrossModalSimple(BaseModel):
         self.saver = tf.train.Saver()
         self.load(sess)
 
-        eval_shape_feature, eval_img_feature, eval_img_label = self.img_data.test.next_batch(300, shuffle=False)
-        eval_joint_img_feature, eval_img_pred_label, eval_img_label_acc_val = sess.run([self.emb_v, self.label_img_pred, self.label_img_acc],
-                                                                                       feed_dict={self.tar_img:eval_img_feature, self.y:pairwise_input_data.onehot(eval_img_label, dim=self.model_params.n_class)})
-        np.save(config.EXPERIMENTS_EVAL_IMG_FEATURE_FILE, eval_joint_img_feature)
-        print("Joint image feature saved to %s"%config.IMG_EVAL_FEATURE_FILE)
+        eval_joint_shape_features, eval_joint_img_features = [], []
+
+        for i in range(300):
+            eval_shape_feature, eval_img_feature, eval_img_label = self.img_data.test.next_batch(1, shuffle=False)
+            eval_joint_img_feature, eval_img_pred_label, eval_img_label_acc_val = sess.run([self.emb_v, self.label_img_pred, self.label_img_acc],
+                                                                                       feed_dict={self.tar_img:eval_img_feature, self.y:eval_img_label})
+            eval_joint_img_features.append(eval_joint_img_features)
+        np.save(config.EXPERIMENTS_EVAL_IMG_FEATURE_FILE, eval_joint_img_features)
+        print("Joint image feature saved to %s"%config.EXPERIMENTS_EVAL_IMG_FEATURE_FILE)
         print("Image prediction label:", eval_img_pred_label)
         # print("Image groun truth label:", eval_img_label)
         print("Image classification accuracy:%f"%eval_img_label_acc_val)
 
-        eval_shape_feature, eval_img_feature, eval_shape_label = self.shape_data.test.next_batch(self.shape_data.test.size(), shuffle=False)
-        eval_joint_shape_feature, eval_shape_pred_label, eval_shape_label_acc_val = sess.run([self.emb_w, self.label_shape_pred, self.label_shape_acc],
-                                                                                             feed_dict={self.tar_shape:eval_shape_feature, self.y:pairwise_input_data.onehot(eval_shape_label, dim=self.model_params.n_class)})
-        np.save(config.EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE, eval_joint_shape_feature)
+        for i in range(self.shape_data.test.size()):
+            eval_shape_feature, eval_img_feature, eval_shape_label = self.shape_data.test.next_batch(self.shape_data.test.size(), shuffle=False)
+            eval_joint_shape_feature, eval_shape_pred_label, eval_shape_label_acc_val = sess.run([self.emb_w, self.label_shape_pred, self.label_shape_acc],
+                                                                                             feed_dict={self.tar_shape:eval_shape_feature, self.y:eval_shape_label})
+            eval_joint_shape_features.append(eval_joint_shape_feature)
+        np.save(config.EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE, eval_joint_shape_features)
         print("Shape predicition label:", eval_shape_pred_label)
         print("Shape classification accuracy:%f"%eval_shape_label_acc_val)
-        print("Joint shape feature saved to %s"%config.SHAPE_EVAL_FEATURE_FILE)
+        print("Joint shape feature saved to %s"%config.EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE)
 
         test_txt_vecs_trans, test_img_feats_trans, test_labels = eval_joint_shape_feature, eval_joint_img_feature, eval_shape_label
         # Do cross-modal class retrieval

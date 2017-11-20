@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 
 class_ids = [4074963,2871439,3207941,2747177,2801938,3991062,3513137,3797390,\
                 2773838,3624134,4004475,2691156,2818832,2876657,3593526,2946921,\
@@ -26,19 +27,18 @@ def generate_classes():
     print classes
     # print id2class
 
-def feature_reduction_vis(features, labels, tag="pca", fig_index=1, draw_label=True):
+def feature_reduction_vis(features, labels, tag="pca", text=None, fig_index=1, draw_label=True):
     print features.shape
     fig = plt.figure(fig_index)
     ax = fig.add_subplot(111)
     ax.set_title(tag)
     plt.xlabel('X')
     plt.ylabel('Y')
-    # features = features.astype(int)
-    # ax.scatter(features[:, 0], features[:, 1], c=labels, marker='.')
-    ax.scatter(features[:, 0], features[:, 1], marker='.')
-    if draw_label:
+    ax.scatter(features[:, 0], features[:, 1], c=labels, marker='.')
+    # ax.scatter(features[:, 0], features[:, 1], marker='.')
+    if draw_label and text:
         for i in xrange(features.shape[0]):
-            plt.text(features[i][0], features[i][1], str(labels[i]), horizontalalignment='center', verticalalignment='center')
+            plt.text(features[i][0], features[i][1], text[i], horizontalalignment='center', verticalalignment='center')
     plt.legend("shapenet-shape")
     # plt.show()
 
@@ -48,5 +48,11 @@ def text_annotation_vis():
 
 
 if __name__ == '__main__':
-    generate_classes()
+    labels = np.load('../data/image/image_eval_labels_first.npy')
+    labels = np.zeros([labels.shape[0]])
+    order = np.arange(1, labels.shape[0]+1)
+    hint_text = [str(o) for o in np.concatenate((order, order), axis=0)]
+    feature_reduction_vis(np.load('../data/result/visual/image_shape_eval_first_triplet_acmr_joint_features_tsne.npy'), np.concatenate((labels, labels+1), axis=0), tag="tsne", text=hint_text)
+    plt.show()
+    # generate_classes()
     # text_annotation_vis()
