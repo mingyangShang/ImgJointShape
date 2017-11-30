@@ -11,6 +11,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from src.data import pairwise_input_data
 import src.config as config
+from src.utils.retrieval import img2shape, shape2img
 
 class ModelParams(BaseModelParams):
     def __init__(self):
@@ -23,15 +24,15 @@ class ModelParams(BaseModelParams):
         self.margin = .01
         self.alpha = 5
         self.batch_size = 64
-        self.n_class = 3
+        self.n_class = 10
         self.visual_feat_dim = 4096
         #self.word_vec_dim = 300
-        self.word_vec_dim = 512
+        self.word_vec_dim = 128
         self.lr_total = 0.0001
         self.lr_emb = 0.0001
         self.lr_domain = 0.0001
         self.top_k = 50
-        self.semantic_emb_dim = 128
+        self.semantic_emb_dim = 40
         self.dataset_name = 'imagenet+shapenet'
         self.model_name = 'ACMR.ckpt'
         self.model_dir = 'ACMR_%d_%d_%d_similiar' % (self.visual_feat_dim, self.word_vec_dim, self.semantic_emb_dim)
@@ -78,23 +79,26 @@ class AdvCrossModalSimple(BaseModel):
         # self.triplet_loss = tf.maximum(0.,margin+alpha*v_loss_pos-v_loss_neg) + tf.maximum(0.,margin+alpha*w_loss_pos-w_loss_neg)
         self.similar_loss = tf.sqrt(2 * tf.nn.l2_loss(self.emb_v - self.emb_w))
         self.similar_loss = tf.reduce_mean(self.similar_loss)
+        tf.summary.scalar("similar_loss", self.similar_loss)
 
         logits_v = self.label_classifier(self.emb_v)
         logits_w = self.label_classifier(self.emb_w, reuse=True)
         self.label_loss = tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits_v) + \
                           tf.nn.softmax_cross_entropy_with_logits(labels=self.y, logits=logits_w)
         self.label_loss = tf.reduce_mean(self.label_loss)
+        tf.summary.scalar('label_loss', self.label_loss)
         self.label_img_pred = tf.argmax(logits_v, 1)
         self.label_img_acc = tf.reduce_mean(tf.cast(tf.equal(self.label_img_pred, tf.argmax(self.y, 1)), tf.float32))
+        tf.summary.scalar('label_img_acc', self.label_img_acc)
         self.label_shape_pred = tf.argmax(logits_w, 1)
         self.label_shape_acc = tf.reduce_mean(tf.cast(tf.equal(self.label_shape_pred, tf.argmax(self.y, 1)), tf.float32))
         self.label_class_acc =  tf.divide(tf.add(self.label_img_acc, self.label_shape_acc), 2.0)
+        tf.summary.scalar('label_acc', self.label_class_acc)
         # TODO  triplet loss
         self.emb_loss = 100*self.label_loss + self.similar_loss
         self.emb_v_class = self.domain_classifier(self.emb_v, self.l)
         self.emb_w_class = self.domain_classifier(self.emb_w, self.l, reuse=True)
 
-        true_batch_size = tf.shape(self.tar_img)
         all_emb_v = tf.concat([tf.ones([tf.shape(self.tar_img)[0], 1]),
                               tf.zeros([tf.shape(self.tar_img)[0], 1])], 1)
         all_emb_w = tf.concat([tf.zeros([tf.shape(self.tar_shape)[0], 1]),
@@ -103,10 +107,13 @@ class AdvCrossModalSimple(BaseModel):
         self.domain_class_loss = tf.nn.softmax_cross_entropy_with_logits(logits=self.emb_v_class, labels=all_emb_w) + \
             tf.nn.softmax_cross_entropy_with_logits(logits=self.emb_w_class, labels=all_emb_v)
         self.domain_class_loss = tf.reduce_mean(self.domain_class_loss)
+        tf.summary.scalar('domain_loss', self.domain_class_loss)
         self.domain_img_class_acc = tf.equal(tf.greater(0.5, self.emb_v_class), tf.greater(0.5, all_emb_w))
+        tf.summary.scalar('domain_img_acc', tf.reduce_mean(tf.cast(self.domain_img_class_acc, tf.float32)))
         self.domain_shape_class_acc = tf.equal(tf.greater(self.emb_w_class, 0.5), tf.greater(all_emb_v, 0.5))
+        tf.summary.scalar('domain_shape_acc', tf.reduce_mean(tf.cast(self.domain_shape_class_acc, tf.float32)))
         self.domain_class_acc = tf.reduce_mean(tf.cast(tf.concat([self.domain_img_class_acc, self.domain_shape_class_acc], axis=0), tf.float32))
-
+        tf.summary.scalar('domain_acc', self.domain_class_acc)
 
         self.t_vars = tf.trainable_variables()
         self.vf_vars = [v for v in self.t_vars if 'vf_' in v.name]
@@ -116,16 +123,16 @@ class AdvCrossModalSimple(BaseModel):
 
     def visual_feature_embed(self, X, is_training=True, reuse=False):
         with slim.arg_scope([slim.fully_connected], activation_fn=None, reuse=reuse):
-            net = tf.nn.tanh(slim.fully_connected(X, 1000, scope='vf_fc_0'))
-            net = tf.nn.tanh(slim.fully_connected(net, 500, scope='vf_fc_1'))
+            net = tf.nn.tanh(slim.fully_connected(X, 512, scope='vf_fc_0'))
+            net = tf.nn.tanh(slim.fully_connected(net, 100, scope='vf_fc_1'))
             net = tf.nn.tanh(slim.fully_connected(net, self.model_params.semantic_emb_dim, scope='vf_fc_2'))
         return net
 
     def label_embed(self, L, is_training=True, reuse=False):
         with slim.arg_scope([slim.fully_connected], activation_fn=None, reuse=reuse):
-            # net = tf.nn.tanh(slim.fully_connected(L, self.model_params.semantic_emb_dim, scope='le_fc_0'))
-            net = tf.nn.tanh(slim.fully_connected(L, 400, scope='le_fc_0'))
-            net = tf.nn.tanh(slim.fully_connected(net, 200, scope='le_fc_1'))
+            net = tf.nn.tanh(slim.fully_connected(L, self.model_params.semantic_emb_dim, scope='le_fc_0'))
+            # net = tf.nn.tanh(slim.fully_connected(L, 400, scope='le_fc_0'))
+            net = tf.nn.tanh(slim.fully_connected(net, 100, scope='le_fc_1'))
             net = tf.nn.tanh(slim.fully_connected(net, self.model_params.semantic_emb_dim, scope='le_fc_2'))
         return net 
     def label_classifier(self, X, reuse=False):
@@ -141,7 +148,7 @@ class AdvCrossModalSimple(BaseModel):
         return net
 
     def train(self, sess):
-        self.data = pairwise_input_data.read_data(config.SHAPE_TRAIN_FEATURE_FILE, config.IMG_TRAIN_FEATURE_FILE, config.SHAPE_TRAIN_LABEL_FILE,
+        self.data = pairwise_input_data.read_data(config.SHAPE_TRAIN_FEATURE_FILE, config.IMG_TRAIN_FEATURE_FILE, config.TRAIN_LABEL_FILE,
                                                use_onehot=False, label_dim=self.model_params.n_class)
         # self.check_dirs()
         total_loss = self.emb_loss + self.domain_class_loss
@@ -155,7 +162,9 @@ class AdvCrossModalSimple(BaseModel):
             learning_rate=self.model_params.lr_domain,
             beta1=0.5).minimize(self.domain_class_loss, var_list=self.dc_vars)
 
-        tf.initialize_all_variables().run()
+        merged = tf.summary.merge_all()
+        train_writer = tf.summary.FileWriter(config.MODEL_RESULT_DIR + '/train', sess.graph)
+        tf.global_variables_initializer().run()
         self.saver = tf.train.Saver(max_to_keep=self.model_params.n_max_save)
 
         start_time = time.time()
@@ -190,7 +199,7 @@ class AdvCrossModalSimple(BaseModel):
                 # txt_neg_img = batch_feat_[txt_neg_img_idx,:]
                 img_neg_txt = self.find_neg_pair(batch_feat, batch_vec)
                 txt_neg_img = self.find_neg_pair(batch_vec, batch_feat)
-                _, _, label_loss_val, sim_loss_val, emb_loss_val, domain_loss_val, domain_class_acc_val, label_class_acc_val = sess.run([emb_train_op, domain_train_op, self.label_loss, self.similar_loss, self.emb_loss, self.domain_class_loss, self.domain_class_acc, self.label_class_acc],
+                summary, _, _, label_loss_val, sim_loss_val, emb_loss_val, domain_loss_val, domain_class_acc_val, label_class_acc_val = sess.run([merged, emb_train_op, domain_train_op, self.label_loss, self.similar_loss, self.emb_loss, self.domain_class_loss, self.domain_class_acc, self.label_class_acc],
                           feed_dict={self.tar_img: batch_feat,
                           self.tar_shape: batch_vec,
                           self.pos_txt: batch_vec,
@@ -203,6 +212,7 @@ class AdvCrossModalSimple(BaseModel):
                 print('Epoch=%d,batch=%d,time: %4.4f, emb_loss: %.8f, domain_loss: %.8f, label_loss: %.8f, triplet_loss: %.8f, domain_class_acc: %.8f, label_class_acc: %.8f' %(
                     epoch+1, batch, time.time() - start_time, emb_loss_val, domain_loss_val, label_loss_val, sim_loss_val, domain_class_acc_val, label_class_acc_val
                 ))
+                train_writer.add_summary(summary, epoch * self.model_params.batch_size + batch)
                 batch += 1
             if epoch % self.model_params.n_save_epoch == 0:
                 self.save(epoch, sess)
@@ -230,10 +240,11 @@ class AdvCrossModalSimple(BaseModel):
         assert result == [[3, 3, 3], [3, 3, 3], [1, 1, 1]]
 
     def eval(self, sess):
-        self.img_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_EVAL_FEATURE_FILE, config.IMG_EVAL_FEATURE_FILE, config.IMG_EVAL_LABEL_FILE,
-                                             use_onehot=True, label_dim=self.model_params.n_class)
-        self.shape_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_EVAL_FEATURE_FILE, config.IMG_EVAL_FEATURE_FILE, config.SHAPE_EVAL_LABEL_FILE,
-                                             use_onehot=True, label_dim=self.model_params.n_class)
+        self.img_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_TEST_FEATURE_FILE, config.IMG_TEST_FEATURE_FILE, config.TEST_LABEL_FILE,
+                                                      use_onehot=True, label_dim=self.model_params.n_class)
+        self.shape_data = self.img_data
+        # self.shape_data = pairwise_input_data.read_data(None, None, None, config.SHAPE_TEST_FEATURE_FILE, config.IMG_TEST_FEATURE_FILE, config.TEST_LABEL_FILE,
+        #                                                 use_onehot=True, label_dim=self.model_params.n_class)
         start = time.time()
         self.saver = tf.train.Saver()
         self.load(sess)
@@ -242,7 +253,7 @@ class AdvCrossModalSimple(BaseModel):
         eval_joint_img_feature, eval_img_pred_label, eval_img_label_acc_val = sess.run([self.emb_v, self.label_img_pred, self.label_img_acc],
                                                                                        feed_dict={self.tar_img:eval_img_feature, self.y:eval_img_label})
         np.save(config.EXPERIMENTS_EVAL_IMG_FEATURE_FILE, eval_joint_img_feature)
-        print("Joint image feature saved to %s"%config.IMG_EVAL_FEATURE_FILE)
+        print("Joint image feature saved to %s" % config.IMG_TEST_FEATURE_FILE)
         print("Image prediction label:", eval_img_pred_label)
         # print("Image groun truth label:", eval_img_label)
         print("Image classification accuracy:%f"%eval_img_label_acc_val)
@@ -253,6 +264,82 @@ class AdvCrossModalSimple(BaseModel):
         np.save(config.EXPERIMENTS_EVAL_SHAPE_FEATURE_FILE, eval_joint_shape_feature)
         print("Shape predicition label:", eval_shape_pred_label)
         print("Shape classification accuracy:%f"%eval_shape_label_acc_val)
-        print("Joint shape feature saved to %s"%config.SHAPE_EVAL_FEATURE_FILE)
+        print("Joint shape feature saved to %s" % config.SHAPE_TEST_FEATURE_FILE)
 
+        print('[Eval] finished precision-scope in %4.4fs' % (time.time() - start))
+
+        test_shape_vecs_trans, test_img_feats_trans, test_labels = eval_joint_shape_feature, eval_joint_img_feature, eval_shape_label
+        # Do cross-modal class retrieval
+        top_k = self.model_params.top_k
+        avg_precs = []
+        all_precs = []
+        for k in range(1, top_k + 1):
+            for i in range(len(test_shape_vecs_trans)):
+                query_label = test_labels[i]
+
+                # distances and sort by distances
+                wv = test_shape_vecs_trans[i]
+                diffs = test_img_feats_trans - wv
+                dists = np.linalg.norm(diffs, axis=1)
+                sorted_idx = np.argsort(dists)
+
+                # for each k do top-k
+                precs = []
+                for topk in range(1, k + 1):
+                    hits = 0
+                    top_k = sorted_idx[0: topk]
+                    if np.sum(query_label) != test_labels[top_k[-1]]:
+                        continue
+                    for ii in top_k:
+                        retrieved_label = test_labels[ii]
+                        # print("retrievaled label:", retrieved_label)
+                        if np.sum(retrieved_label) == query_label:
+                            hits += 1
+                    precs.append(float(hits) / float(topk))
+                if len(precs) == 0:
+                    precs.append(0)
+                avg_precs.append(np.average(precs))
+            mean_avg_prec = np.mean(avg_precs)
+            all_precs.append(mean_avg_prec)
+        print('[Eval - shape2img] mAP: %f in %4.4fs' % (all_precs[0], (time.time() - start)))
+        print(all_precs)
+        with open(os.path.join(config.root_dir, 'data/result/shape2img_all_precision.pkl'), 'wb') as f:
+            cPickle.dump(all_precs, f, cPickle.HIGHEST_PROTOCOL)
+
+        avg_precs = []
+        all_precs = []
+        top_k = self.model_params.top_k
+        for k in range(1, top_k + 1):
+            for i in range(len(test_img_feats_trans)):
+                query_img_feat = test_img_feats_trans[i]
+                ground_truth_label = test_labels[i]
+
+                # calculate distance and sort
+                diffs = test_shape_vecs_trans - query_img_feat
+                dists = np.linalg.norm(diffs, axis=1)
+                sorted_idx = np.argsort(dists)
+
+                # for each k in top-k
+                precs = []
+                for topk in range(1, k + 1):
+                    hits = 0
+                    top_k = sorted_idx[0: topk]
+                    if np.sum(ground_truth_label) != test_labels[top_k[-1]]:
+                        continue
+                    for ii in top_k:
+                        retrieved_label = test_labels[ii]
+                        if np.sum(ground_truth_label) == retrieved_label:
+                            hits += 1
+                    precs.append(float(hits) / float(topk))
+                if len(precs) == 0:
+                    precs.append(0)
+                avg_precs.append(np.average(precs))
+            mean_avg_prec = np.mean(avg_precs)
+            all_precs.append(mean_avg_prec)
+        print('[Eval - img2shape] mAP: %f in %4.4fs' % (all_precs[0], (time.time() - start)))
+
+        img2shape_pair_acc = img2shape(eval_joint_img_feature, eval_joint_shape_feature,
+                                       np.arange(0, eval_joint_img_feature.shape[0]), top_k=self.model_params.top_k,
+                                       tag="acmr-triplet", save_dir=config.EXPERIMENTS_EVAL_RESULT_DIR)
+        print('[Test - img2shape pair:]', img2shape_pair_acc)
         print('[Eval] finished precision-scope in %4.4fs' % (time.time() - start))

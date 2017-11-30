@@ -60,10 +60,10 @@ class DataSet(object):
             return self._fcs[start:end], self._labels[start:end]
 
 
-def read_data(train_feature_file=None, train_label_file=None, eval_feature_file=None, eval_label_file=None, use_onehot=True, label_dim=10):
-    train_feature = np.load(train_feature_file) if train_feature_file else None
+def read_data(train_feature_file=None, train_label_file=None, eval_feature_file=None, eval_label_file=None, use_onehot=True, label_dim=10, views_th=1):
+    train_feature = np.load(train_feature_file)[:, np.arange(0, views_th), :] if train_feature_file else None
     train_label = np.load(train_label_file) if train_label_file else None
-    eval_feature = np.load(eval_feature_file) if eval_feature_file else None
+    eval_feature = np.load(eval_feature_file)[:, np.arange(0, views_th), :] if eval_feature_file else None
     eval_label = np.load(eval_label_file) if eval_label_file else None
     if use_onehot and train_label_file:
         train_label = onehot(train_label, label_dim)

@@ -1,6 +1,6 @@
 import tensorflow as tf
-# from adv_crossmodal_triplet_wiki import AdvCrossModalSimple, ModelParams
-from adv_crossmodal_similiar_wiki import AdvCrossModalSimple, ModelParams
+from adv_crossmodal_triplet_wiki import AdvCrossModalSimple, ModelParams
+# from adv_crossmodal_similiar_wiki import AdvCrossModalSimple, ModelParams
 
 def main(_):
     graph = tf.Graph()

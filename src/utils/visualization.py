@@ -13,7 +13,7 @@ def generate_classes():
     id2class = {}
     with open("/home/shangmingyang/Desktop/ImgJointShape/shapenet55_class.txt", 'r') as f:
         for row in f.readlines():
-            print row
+            print(row)
             if row[0].isdigit():
                 id, name = row.split('\t')
                 full_name = name[:name.index('(')]
@@ -24,35 +24,38 @@ def generate_classes():
                 id2class[id] = first_name
 
     classes = [id2class[str(id)] for id in class_ids]
-    print classes
-    # print id2class
+    print(classes)
 
 def feature_reduction_vis(features, labels, tag="pca", text=None, fig_index=1, draw_label=True):
-    print features.shape
     fig = plt.figure(fig_index)
     ax = fig.add_subplot(111)
     ax.set_title(tag)
     plt.xlabel('X')
     plt.ylabel('Y')
-    ax.scatter(features[:, 0], features[:, 1], c=labels, marker='.')
-    # ax.scatter(features[:, 0], features[:, 1], marker='.')
+    sc = ax.scatter(features[:, 0], features[:, 1], c=labels, marker='.', s=10)
     if draw_label and text:
-        for i in xrange(features.shape[0]):
+        for i in range(features.shape[0]):
             plt.text(features[i][0], features[i][1], text[i], horizontalalignment='center', verticalalignment='center')
+    plt.colorbar(sc)
     plt.legend("shapenet-shape")
     # plt.show()
 
-def text_annotation_vis():
-
+def show():
     plt.show()
-
 
 if __name__ == '__main__':
-    labels = np.load('../data/image/image_eval_labels_first.npy')
-    labels = np.zeros([labels.shape[0]])
-    order = np.arange(1, labels.shape[0]+1)
-    hint_text = [str(o) for o in np.concatenate((order, order), axis=0)]
-    feature_reduction_vis(np.load('../data/result/visual/image_shape_eval_first_triplet_acmr_joint_features_tsne.npy'), np.concatenate((labels, labels+1), axis=0), tag="tsne", text=hint_text)
+    # labels = np.load('../../data/image/image_eval_labels_first.npy')
+    # labels = np.zeros([labels.shape[0]])
+    # order = np.arange(1, labels.shape[0]+1)
+    # hint_text = [str(o) for o in np.concatenate((order, order), axis=0)]
+    # feature_reduction_vis(np.load('../../data/result/visual/image_shape_eval_first_triplet_acmr_joint_features_tsne.npy'), np.concatenate((labels, labels+1), axis=0), tag="tsne", text=hint_text)
+    # plt.show()
+    N = 100
+    x = np.random.normal(0, 1, N)
+    y = np.random.normal(0, 1, N)
+    c = np.random.random((N, 4))
+    print(c)
+
+    plt.scatter(x, y, c=c)
     plt.show()
     # generate_classes()
-    # text_annotation_vis()

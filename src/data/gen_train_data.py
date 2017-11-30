@@ -129,12 +129,13 @@ def gen_eval_shape_feature():
     eval_features = all_features[eval_index, :]
     np.save("/home1/shangmingyang/data/ImgJoint3D/feature/eval_shape_img_feature.npy", eval_features)
 
-def fake_train_img_feature(n_first=2):
-    shape_img_features = np.load("/home1/shangmingyang/data/ImgJoint3D/feature/train_img_feature_all.npy")
+def fake_train_img_feature(n_first=1):
+    # shape_img_features = np.load("/home1/shangmingyang/data/ImgJoint3D/feature/train_img_feature_all.npy")
+    shape_img_features = np.load(config.IMG_SHAPENET_TEST_FEATURE_FILE)
     first_2_features = shape_img_features[:, np.arange(0, n_first), :]
     first_2_features = np.reshape(first_2_features, [-1, first_2_features.shape[-1]])
     print first_2_features.shape
-    np.save(config.IMG_TRAIN_FEATURE_FILE, first_2_features)
+    np.save(config.IMG_TEST_FEATURE_FILE, first_2_features)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -153,4 +154,4 @@ if __name__ == '__main__':
     if args.gen_train_img:
         gen_train_img_data()
     if args.fake_train_img:
-        fake_train_img_feature(n_first=2)
+        fake_train_img_feature(n_first=1)
